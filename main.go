@@ -1,58 +1,118 @@
 package main
 
 import (
-	"net/http"
-
 	"errors"
-
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
-type ALLINONE struct {
-	ID    string `json:"id"`
-	Item  string `json:"item"`
-	Price int    `json:"price"`
+type Item struct {
+	BookName           string `json:"book_name"`
+	AuthorName         string `json:"author_name"`
+	Price              string `json:"price"`
+	PublicationCompany string `json:"publication_company"`
+	Code               string `json:"book_code"`
 }
 
-var LISTS = []ALLINONE{
-	{ID: "1", Item: "Go-Book", Price: 2000},
-	{ID: "2", Item: "Python-Book", Price: 1000},
-	{ID: "3", Item: "C-Book", Price: 1500},
+/*
+func New() *List {
+	return &List{}
+}
+*/
+
+var Books []Item
+
+func init() {
+	Books = append(Books, Item{
+		BookName:           "Golang Guide",
+		AuthorName:         "Mir Monajir",
+		Price:              "$300",
+		PublicationCompany: "Hacktech",
+		Code:               "CD001",
+	})
+	Books = append(Books, Item{
+		BookName:           "Docker",
+		AuthorName:         "Jhonathan",
+		Price:              "$200",
+		PublicationCompany: "MicroWorld",
+		Code:               "CD002",
+	})
+	Books = append(Books, Item{
+		BookName:           "Kubernetes",
+		AuthorName:         "Jimmy",
+		Price:              "$250",
+		PublicationCompany: "MicroWorld",
+		Code:               "CD003",
+	})
 }
 
-func getLISTS(context *gin.Context) {
-	context.IndentedJSON(http.StatusOK, LISTS)
-}
-func addLISTS(context *gin.Context) {
-	var newItem ALLINONE
-	if err := context.BindJSON(&newItem); err != nil {
+//To add Items
+func Add(c *gin.Context) {
+	var newItem Item
+	err := c.BindJSON(&newItem)
+	if err != nil {
 		return
 	}
-	LISTS = append(LISTS, newItem)
-	context.IndentedJSON(http.StatusCreated, newItem)
+	Books = append(Books, newItem)
+	c.IndentedJSON(http.StatusCreated, Books)
 }
-func getLISTSByID(id string) (*ALLINONE, error) {
-	for i, t := range LISTS {
-		if t.ID == id {
-			return &LISTS[i], nil
+
+//To Fetch all the items
+func GetAll(c *gin.Context) {
+	c.IndentedJSON(http.StatusOK, Books)
+}
+
+//To Fetch Items By Name
+func GetItemByCode(code string) (*Item, error) {
+	for i, t := range Books {
+		if t.Code == code {
+			return &Books[i], nil
 		}
 	}
-	return nil, errors.New("id not found")
+	return nil, errors.New("Item Not Found")
 }
-func getLIST(context *gin.Context) {
-	id := context.Param("id")
-	LIST, err := getLISTSByID(id)
+
+//Handler of GetItemByCode()
+
+func GetItem(c *gin.Context) {
+	code := c.Param("code")
+	it, err := GetItemByCode(code)
 	if err != nil {
-		context.IndentedJSON(http.StatusNotFound, gin.H{"message": "Item not found"})
+		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "Item Not found"})
 		return
 	}
-	context.IndentedJSON(http.StatusOK, LIST)
+	c.IndentedJSON(http.StatusOK, it)
 }
+
+//To Delete The Item By code
+func DelItemByCode(code string) error {
+	for i, t := range Books {
+		if t.Code == code {
+			Books = append(Books[:i], Books[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("Item Not Found")
+}
+
+//Handler for DelItemByCode()
+func Delitem(c *gin.Context) {
+	code := c.Param("code")
+	it := DelItemByCode(code)
+	if it != nil {
+		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "Item Not found"})
+		return
+	}
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "Item deleted"})
+}
+
 func main() {
 	router := gin.Default()
-	router.GET("/LISTS", getLISTS)
-	router.GET("/LISTS/:id", getLIST)
-	router.POST("/LISTS", addLISTS)
-	router.Run("localhost:9001")
+
+	router.GET("/Book", GetAll)           //GET endpoint
+	router.POST("/Book", Add)             //POST Endpoint
+	router.GET("/Book/:code", GetItem)    //GET endpoint by code
+	router.DELETE("/Book/:code", Delitem) //DELETE endpoint by code
+	router.Run("localhost:8091")          //to run the API
 
 }
